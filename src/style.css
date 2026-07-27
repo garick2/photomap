@@ -1,0 +1,82 @@
+* { box-sizing: border-box; }
+html, body, #app { height: 100%; margin: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #111;
+  color: #eee;
+}
+#app { display: flex; flex-direction: column; }
+
+#topbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 14px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  flex-wrap: wrap;
+}
+#topbar button {
+  background: #4a90e2; color: white; border: 0;
+  padding: 8px 14px; border-radius: 6px; cursor: pointer;
+  font-size: 14px; font-weight: 500;
+}
+#topbar button:hover { background: #3b7bc4; }
+#topbar button:disabled { background: #555; cursor: default; }
+#status { font-size: 13px; color: #bbb; }
+#unsupported { font-size: 13px; color: #ff9a9a; }
+
+#map { flex: 1; min-height: 0; }
+
+#viewer {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 1000;
+}
+#viewer[hidden] { display: none; }
+
+#viewer-stage {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  max-width: 96vw; max-height: 88vh;
+}
+#viewer-img {
+  max-width: 96vw; max-height: 88vh;
+  object-fit: contain;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  background: #000;
+}
+#viewer-img:not([src]) { display: none; }
+#viewer-loading {
+  color: white;
+  font-size: 14px;
+  padding: 24px 32px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+}
+
+#viewer-close, #viewer-fullscreen {
+  position: absolute; top: 16px;
+  background: rgba(255, 255, 255, 0.14); color: white;
+  border: 0; width: 40px; height: 40px; border-radius: 20px;
+  cursor: pointer; z-index: 10;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#viewer-close { right: 16px; font-size: 24px; line-height: 1; }
+#viewer-fullscreen { right: 64px; font-size: 18px; }
+#viewer-close:hover, #viewer-fullscreen:hover { background: rgba(255,255,255,0.25); }
+
+#viewer-caption {
+  margin-top: 12px;
+  color: #ddd;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 6px 12px;
+  border-radius: 4px;
+  max-width: 90vw;
+  text-align: center;
+  word-break: break-all;
+}
+
+.maplibregl-ctrl-attrib { font-size: 10px; }

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PhotoMap</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header id="topbar">
+        <button id="pick-folder">Choose folder</button>
+        <span id="status">No folder selected</span>
+        <span id="unsupported" hidden>
+          This browser doesn't support folder access. Use Chrome, Edge, or another Chromium browser.
+        </span>
+      </header>
+      <div id="map"></div>
+    </div>
+
+    <div id="viewer" hidden>
+      <button id="viewer-close" aria-label="Close">×</button>
+      <button id="viewer-fullscreen" aria-label="Full screen">⛶</button>
+      <div id="viewer-stage">
+        <img id="viewer-img" alt="" />
+        <div id="viewer-loading" hidden>Loading…</div>
+      </div>
+      <div id="viewer-caption"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,145 @@
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+
+let map;
+const photosById = new Map();
+let firstBatch = true;
+
+export function initMap() {
+  map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      sources: {
+        satellite: {
+          type: 'raster',
+          tiles: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          ],
+          tileSize: 256,
+          maxzoom: 19,
+          attribution:
+            'Imagery &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+        }
+      },
+      layers: [{ id: 'satellite', type: 'raster', source: 'satellite' }]
+    },
+    center: [0, 20],
+    zoom: 1.5,
+    preserveDrawingBuffer: true
+  });
+
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
+  window.__map = map;
+  window.__photos = photosById;
+
+  map.on('error', (e) => console.error('[map error]', e?.error?.message || e));
+
+  const ro = new ResizeObserver(() => map.resize());
+  ro.observe(map.getContainer());
+
+  map.on('load', () => {
+    map.resize();
+    map.addSource('photos', {
+      type: 'geojson',
+      data: emptyFC(),
+      cluster: true,
+      clusterMaxZoom: 16,
+      clusterRadius: 45
+    });
+
+    map.addLayer({
+      id: 'clusters',
+      type: 'circle',
+      source: 'photos',
+      filter: ['has', 'point_count'],
+      paint: {
+        'circle-color': '#4a90e2',
+        'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 50, 26, 200, 32],
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff'
+      }
+    });
+
+    map.addLayer({
+      id: 'photo-points',
+      type: 'circle',
+      source: 'photos',
+      filter: ['!', ['has', 'point_count']],
+      paint: {
+        'circle-color': '#ff5a5f',
+        'circle-radius': 8,
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff'
+      }
+    });
+
+    map.on('click', 'clusters', (e) => {
+      const feat = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })[0];
+      if (!feat) return;
+      const clusterId = feat.properties.cluster_id;
+      map.getSource('photos').getClusterExpansionZoom(clusterId).then((zoom) => {
+        map.easeTo({ center: feat.geometry.coordinates, zoom });
+      });
+    });
+
+    map.on('click', 'photo-points', (e) => {
+      const feat = e.features[0];
+      const photo = photosById.get(feat.properties.id);
+      if (photo) {
+        window.dispatchEvent(new CustomEvent('photo-click', { detail: photo }));
+      }
+    });
+
+    const setCursor = (v) => () => (map.getCanvas().style.cursor = v);
+    map.on('mouseenter', 'clusters', setCursor('pointer'));
+    map.on('mouseleave', 'clusters', setCursor(''));
+    map.on('mouseenter', 'photo-points', setCursor('pointer'));
+    map.on('mouseleave', 'photo-points', setCursor(''));
+  });
+}
+
+function emptyFC() {
+  return { type: 'FeatureCollection', features: [] };
+}
+
+function refreshSource() {
+  const src = map.getSource('photos');
+  if (!src) return;
+  const features = [];
+  for (const p of photosById.values()) {
+    features.push({
+      type: 'Feature',
+      properties: { id: p.id, name: p.name },
+      geometry: { type: 'Point', coordinates: [p.lng, p.lat] }
+    });
+  }
+  src.setData({ type: 'FeatureCollection', features });
+}
+
+export function addPhotos(photos) {
+  for (const p of photos) photosById.set(p.id, p);
+  const apply = () => {
+    refreshSource();
+    if (firstBatch && photosById.size > 0) {
+      firstBatch = false;
+      fitToPhotos();
+    }
+  };
+  if (map.getSource('photos')) apply();
+  else map.once('load', apply);
+}
+
+function fitToPhotos() {
+  const bounds = new maplibregl.LngLatBounds();
+  for (const p of photosById.values()) bounds.extend([p.lng, p.lat]);
+  if (!bounds.isEmpty()) {
+    map.fitBounds(bounds, { padding: 60, maxZoom: 12, duration: 800 });
+  }
+}
+
+export function clearPhotos() {
+  photosById.clear();
+  firstBatch = true;
+  if (map.getSource('photos')) refreshSource();
+}
