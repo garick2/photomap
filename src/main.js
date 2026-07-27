@@ -1,6 +1,7 @@
-import { initMap, addPhotos, clearPhotos } from './map.js';
+import { initMap, addPhotos, clearPhotos, setPhotoImage } from './map.js';
 import { scanFolder } from './scan.js';
 import { openViewer, initViewer } from './viewer.js';
+import { makeThumb } from './thumbs.js';
 
 const pickBtn = document.getElementById('pick-folder');
 const statusEl = document.getElementById('status');
@@ -15,6 +16,52 @@ if (!window.showDirectoryPicker) {
   statusEl.hidden = true;
 }
 
+let sessionToken = 0;
+
+const fastQueue = [];
+const heicQueue = [];
+const FAST_MAX = 4;
+const HEIC_MAX = 1;
+let fastInFlight = 0;
+let heicInFlight = 0;
+
+function queueThumb(photo, token) {
+  const q = /\.(heic|heif)$/i.test(photo.name) ? heicQueue : fastQueue;
+  q.push({ photo, token });
+  pumpThumbs();
+}
+
+function pumpThumbs() {
+  while (fastInFlight < FAST_MAX && fastQueue.length) {
+    startThumb(fastQueue.shift(), 'fast');
+  }
+  while (heicInFlight < HEIC_MAX && heicQueue.length && fastQueue.length === 0) {
+    startThumb(heicQueue.shift(), 'heic');
+  }
+}
+
+function startThumb(job, lane) {
+  if (lane === 'fast') fastInFlight++;
+  else heicInFlight++;
+  makeThumb(job.photo.file)
+    .then((bitmap) => {
+      if (job.token === sessionToken) setPhotoImage(job.photo.id, bitmap);
+    })
+    .catch((err) => {
+      console.warn('thumb failed for', job.photo.name, err?.message || err);
+    })
+    .finally(() => {
+      if (lane === 'fast') fastInFlight--;
+      else heicInFlight--;
+      pumpThumbs();
+    });
+}
+
+function resetThumbQueues() {
+  fastQueue.length = 0;
+  heicQueue.length = 0;
+}
+
 pickBtn.addEventListener('click', async () => {
   let dirHandle;
   try {
@@ -26,6 +73,9 @@ pickBtn.addEventListener('click', async () => {
     return;
   }
 
+  sessionToken++;
+  const token = sessionToken;
+  resetThumbQueues();
   clearPhotos();
   statusEl.textContent = 'Scanning…';
 
@@ -41,6 +91,7 @@ pickBtn.addEventListener('click', async () => {
     onPhoto(photo) {
       geoCount++;
       batch.push(photo);
+      queueThumb(photo, token);
       if (batch.length >= 25) flush();
       statusEl.textContent = `${geoCount} geotagged / ${scanned} scanned…`;
     },

@@ -1,8 +1,10 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { THUMB_PIXEL_RATIO } from './thumbs.js';
 
 let map;
 const photosById = new Map();
+const imageIds = new Set();
 let firstBatch = true;
 
 export function initMap() {
@@ -62,15 +64,28 @@ export function initMap() {
     });
 
     map.addLayer({
-      id: 'photo-points',
+      id: 'photo-dots',
       type: 'circle',
       source: 'photos',
       filter: ['!', ['has', 'point_count']],
       paint: {
         'circle-color': '#ff5a5f',
-        'circle-radius': 8,
-        'circle-stroke-width': 2,
+        'circle-radius': 5,
+        'circle-stroke-width': 1.5,
         'circle-stroke-color': '#ffffff'
+      }
+    });
+
+    map.addLayer({
+      id: 'photo-thumbs',
+      type: 'symbol',
+      source: 'photos',
+      filter: ['!', ['has', 'point_count']],
+      layout: {
+        'icon-image': ['get', 'id'],
+        'icon-size': 1,
+        'icon-allow-overlap': true,
+        'icon-anchor': 'center'
       }
     });
 
@@ -83,19 +98,23 @@ export function initMap() {
       });
     });
 
-    map.on('click', 'photo-points', (e) => {
+    const onPointClick = (e) => {
       const feat = e.features[0];
       const photo = photosById.get(feat.properties.id);
       if (photo) {
         window.dispatchEvent(new CustomEvent('photo-click', { detail: photo }));
       }
-    });
+    };
+    map.on('click', 'photo-thumbs', onPointClick);
+    map.on('click', 'photo-dots', onPointClick);
 
     const setCursor = (v) => () => (map.getCanvas().style.cursor = v);
     map.on('mouseenter', 'clusters', setCursor('pointer'));
     map.on('mouseleave', 'clusters', setCursor(''));
-    map.on('mouseenter', 'photo-points', setCursor('pointer'));
-    map.on('mouseleave', 'photo-points', setCursor(''));
+    map.on('mouseenter', 'photo-thumbs', setCursor('pointer'));
+    map.on('mouseleave', 'photo-thumbs', setCursor(''));
+    map.on('mouseenter', 'photo-dots', setCursor('pointer'));
+    map.on('mouseleave', 'photo-dots', setCursor(''));
   });
 }
 
@@ -130,6 +149,17 @@ export function addPhotos(photos) {
   else map.once('load', apply);
 }
 
+export function setPhotoImage(id, bitmap) {
+  const add = () => {
+    if (!photosById.has(id)) return;
+    if (map.hasImage(id)) map.removeImage(id);
+    map.addImage(id, bitmap, { pixelRatio: THUMB_PIXEL_RATIO });
+    imageIds.add(id);
+  };
+  if (map.isStyleLoaded()) add();
+  else map.once('load', add);
+}
+
 function fitToPhotos() {
   const bounds = new maplibregl.LngLatBounds();
   for (const p of photosById.values()) bounds.extend([p.lng, p.lat]);
@@ -139,6 +169,10 @@ function fitToPhotos() {
 }
 
 export function clearPhotos() {
+  for (const id of imageIds) {
+    if (map.hasImage?.(id)) map.removeImage(id);
+  }
+  imageIds.clear();
   photosById.clear();
   firstBatch = true;
   if (map.getSource('photos')) refreshSource();
