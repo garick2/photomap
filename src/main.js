@@ -2,6 +2,7 @@ import { initMap, addPhotos, clearPhotos, setPhotoImage, setThumbsVisible } from
 import { scanFolder } from './scan.js';
 import { openViewer, initViewer } from './viewer.js';
 import { makeThumb } from './thumbs.js';
+import { exportMap, saveHtml } from './exporter.js';
 
 const pickBtn = document.getElementById('pick-folder');
 const statusEl = document.getElementById('status');
@@ -85,6 +86,10 @@ function resetThumbQueues() {
   heicQueue.length = 0;
 }
 
+const saveBtn = document.getElementById('save-map');
+let currentPhotos = [];
+let currentFolderName = '';
+
 pickBtn.addEventListener('click', async () => {
   let dirHandle;
   try {
@@ -100,6 +105,9 @@ pickBtn.addEventListener('click', async () => {
   const token = sessionToken;
   resetThumbQueues();
   clearPhotos();
+  currentPhotos = [];
+  currentFolderName = dirHandle.name || 'PhotoMap';
+  saveBtn.hidden = true;
   statusEl.textContent = 'Scanning…';
 
   let scanned = 0;
@@ -114,6 +122,7 @@ pickBtn.addEventListener('click', async () => {
     onPhoto(photo) {
       geoCount++;
       batch.push(photo);
+      currentPhotos.push(photo);
       queueThumb(photo, token);
       if (batch.length >= 25) flush();
       statusEl.textContent = `${geoCount} geotagged / ${scanned} scanned…`;
@@ -129,6 +138,60 @@ pickBtn.addEventListener('click', async () => {
   flush();
   statusEl.textContent =
     `Done — ${geoCount} geotagged photo${geoCount === 1 ? '' : 's'} of ${scanned} scanned`;
+  saveBtn.hidden = geoCount === 0;
 });
+
+const exportDialog = document.getElementById('export-dialog');
+const exportStatus = document.getElementById('export-status');
+const exportBar = document.getElementById('export-bar');
+const exportCancel = document.getElementById('export-cancel');
+let exportAbort = null;
+
+saveBtn.addEventListener('click', async () => {
+  if (!currentPhotos.length) return;
+  exportAbort = new AbortController();
+  exportStatus.textContent = `Preparing 0 / ${currentPhotos.length}…`;
+  exportBar.style.width = '0%';
+  exportDialog.showModal();
+
+  let result;
+  try {
+    result = await exportMap(currentPhotos, {
+      title: currentFolderName,
+      signal: exportAbort.signal,
+      onProgress: ({ done, total }) => {
+        exportStatus.textContent = `Generating previews… ${done} / ${total}`;
+        exportBar.style.width = `${(done / total) * 100}%`;
+      }
+    });
+  } catch (e) {
+    if (e.message !== 'aborted') {
+      console.error(e);
+      exportStatus.textContent = 'Failed: ' + e.message;
+      return;
+    }
+    exportDialog.close();
+    return;
+  }
+
+  exportStatus.textContent = 'Saving file…';
+  const stamp = new Date().toISOString().slice(0, 10);
+  const fileName = `${sanitize(currentFolderName)}-photomap-${stamp}.html`;
+  const saved = await saveHtml(result.html, fileName);
+  exportDialog.close();
+  if (saved.saved) {
+    statusEl.textContent = `Saved ${result.count} photo${result.count === 1 ? '' : 's'} as ${fileName}`;
+  }
+});
+
+exportCancel.addEventListener('click', () => {
+  exportAbort?.abort();
+  exportDialog.close();
+});
+exportDialog.addEventListener('cancel', (e) => e.preventDefault());
+
+function sanitize(s) {
+  return String(s).replace(/[^a-z0-9_-]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'photomap';
+}
 
 window.addEventListener('photo-click', (e) => openViewer(e.detail));

@@ -14,6 +14,7 @@
         <span id="unsupported" hidden>
           This browser doesn't support folder access. Use Chrome, Edge, or another Chromium browser.
         </span>
+        <button id="save-map" hidden>Save as map</button>
         <label id="thumbs-toggle" class="toggle">
           <input type="checkbox" id="thumbs-checkbox" checked />
           <span>Show thumbnails</span>
@@ -50,6 +51,16 @@
           Don't show this again
         </label>
         <button id="intro-close">Got it</button>
+      </div>
+    </dialog>
+
+    <dialog id="export-dialog">
+      <h2>Save as map</h2>
+      <p id="export-status">Preparing…</p>
+      <div class="progress"><div id="export-bar"></div></div>
+      <div class="intro-actions">
+        <span id="export-note">This can take a minute for large folders.</span>
+        <button id="export-cancel">Cancel</button>
       </div>
     </dialog>
 
