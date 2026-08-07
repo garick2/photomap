@@ -10,6 +10,19 @@ const unsupportedEl = document.getElementById('unsupported');
 initMap();
 initViewer();
 
+const intro = document.getElementById('intro');
+const introClose = document.getElementById('intro-close');
+const introDontShow = document.getElementById('intro-dont-show');
+const INTRO_KEY = 'photomap.hideIntro';
+if (localStorage.getItem(INTRO_KEY) !== '1') {
+  intro.showModal();
+}
+introClose.addEventListener('click', () => {
+  if (introDontShow.checked) localStorage.setItem(INTRO_KEY, '1');
+  intro.close();
+});
+intro.addEventListener('cancel', (e) => e.preventDefault());
+
 const thumbsCheckbox = document.getElementById('thumbs-checkbox');
 const THUMBS_KEY = 'photomap.showThumbs';
 const savedThumbs = localStorage.getItem(THUMBS_KEY);

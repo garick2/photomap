@@ -22,6 +22,37 @@
       <div id="map"></div>
     </div>
 
+    <dialog id="intro">
+      <h2>Welcome to PhotoMap</h2>
+      <p>
+        PhotoMap turns a folder of your photos into a satellite map. Every photo
+        with GPS metadata appears as a thumbnail pin where it was taken.
+      </p>
+
+      <h3>How to use</h3>
+      <ol>
+        <li>Click <strong>Choose folder</strong> and pick any folder on your computer.</li>
+        <li>Wait while the app scans. Non-photos and photos without location data are ignored.</li>
+        <li>Zoom in to see individual thumbnails. Click one to open the full photo.</li>
+        <li>Press <kbd>F</kbd> for fullscreen, <kbd>Esc</kbd> to close the viewer.</li>
+        <li>Use the <strong>Show thumbnails</strong> toggle to swap between thumbnail pins and simple dots.</li>
+      </ol>
+
+      <h3>Privacy</h3>
+      <p>
+        Nothing is uploaded and no files are modified. Your photos stay on your
+        computer — the app only has read-only access to the folder you pick.
+      </p>
+
+      <div class="intro-actions">
+        <label class="dont-show">
+          <input type="checkbox" id="intro-dont-show" />
+          Don't show this again
+        </label>
+        <button id="intro-close">Got it</button>
+      </div>
+    </dialog>
+
     <div id="viewer" hidden>
       <button id="viewer-close" aria-label="Close">×</button>
       <button id="viewer-fullscreen" aria-label="Full screen">⛶</button>
