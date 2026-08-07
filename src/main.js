@@ -1,4 +1,4 @@
-import { initMap, addPhotos, clearPhotos, setPhotoImage } from './map.js';
+import { initMap, addPhotos, clearPhotos, setPhotoImage, setThumbsVisible } from './map.js';
 import { scanFolder } from './scan.js';
 import { openViewer, initViewer } from './viewer.js';
 import { makeThumb } from './thumbs.js';
@@ -9,6 +9,16 @@ const unsupportedEl = document.getElementById('unsupported');
 
 initMap();
 initViewer();
+
+const thumbsCheckbox = document.getElementById('thumbs-checkbox');
+const THUMBS_KEY = 'photomap.showThumbs';
+const savedThumbs = localStorage.getItem(THUMBS_KEY);
+if (savedThumbs !== null) thumbsCheckbox.checked = savedThumbs === '1';
+setThumbsVisible(thumbsCheckbox.checked);
+thumbsCheckbox.addEventListener('change', () => {
+  localStorage.setItem(THUMBS_KEY, thumbsCheckbox.checked ? '1' : '0');
+  setThumbsVisible(thumbsCheckbox.checked);
+});
 
 if (!window.showDirectoryPicker) {
   pickBtn.disabled = true;

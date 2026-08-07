@@ -149,6 +149,16 @@ export function addPhotos(photos) {
   else map.once('load', apply);
 }
 
+export function setThumbsVisible(visible) {
+  const apply = () => {
+    map.setLayoutProperty('photo-thumbs', 'visibility', visible ? 'visible' : 'none');
+    map.setPaintProperty('photo-dots', 'circle-radius', visible ? 5 : 8);
+    map.setPaintProperty('photo-dots', 'circle-stroke-width', visible ? 1.5 : 2);
+  };
+  if (map.getLayer('photo-thumbs')) apply();
+  else map.once('load', apply);
+}
+
 export function setPhotoImage(id, bitmap) {
   const add = () => {
     if (!photosById.has(id)) return;
