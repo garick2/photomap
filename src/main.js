@@ -1,8 +1,14 @@
-import { initMap, addPhotos, clearPhotos, setPhotoImage, setThumbsVisible } from './map.js';
+import {
+  initMap, addPhotos, clearPhotos, setPhotoImage,
+  setThumbsVisible, setPaths, setPathsVisible, setVisiblePhotoIds
+} from './map.js';
 import { scanFolder } from './scan.js';
 import { openViewer, initViewer } from './viewer.js';
 import { makeThumb } from './thumbs.js';
 import { exportMap, saveHtml } from './exporter.js';
+import {
+  enrich, computePaths, inventory, filterPhotos, resetPathState
+} from './paths.js';
 
 const pickBtn = document.getElementById('pick-folder');
 const statusEl = document.getElementById('status');
@@ -86,6 +92,138 @@ function resetThumbQueues() {
   heicQueue.length = 0;
 }
 
+// ============ Filter state and panel ============
+
+const filtersBtn = document.getElementById('filters-btn');
+const filterPanel = document.getElementById('filter-panel');
+const filterClose = document.getElementById('filter-close');
+const pathsToggle = document.getElementById('paths-toggle');
+const personList = document.getElementById('person-list');
+const dayList = document.getElementById('day-list');
+const timeFrom = document.getElementById('time-from');
+const timeTo = document.getElementById('time-to');
+const rangeClear = document.getElementById('range-clear');
+
+const filterState = {
+  showPaths: false,
+  people: null,   // null = all
+  days: null,     // null = all
+  from: null,     // ms
+  to: null        // ms
+};
+
+filtersBtn.addEventListener('click', () => {
+  filterPanel.hidden = !filterPanel.hidden;
+});
+filterClose.addEventListener('click', () => {
+  filterPanel.hidden = true;
+});
+pathsToggle.addEventListener('change', () => {
+  filterState.showPaths = pathsToggle.checked;
+  setPathsVisible(filterState.showPaths);
+});
+timeFrom.addEventListener('change', () => {
+  filterState.from = timeFrom.value ? new Date(timeFrom.value).getTime() : null;
+  applyFilters();
+});
+timeTo.addEventListener('change', () => {
+  filterState.to = timeTo.value ? new Date(timeTo.value).getTime() : null;
+  applyFilters();
+});
+rangeClear.addEventListener('click', () => {
+  timeFrom.value = '';
+  timeTo.value = '';
+  filterState.from = null;
+  filterState.to = null;
+  applyFilters();
+});
+
+function renderInventory() {
+  const inv = inventory(currentPhotos);
+
+  personList.innerHTML = '';
+  for (const { person, count, color } of inv.people) {
+    const label = document.createElement('label');
+    label.className = 'chip';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !filterState.people || filterState.people.has(person);
+    cb.addEventListener('change', () => {
+      if (!filterState.people) {
+        filterState.people = new Set(inv.people.map((p) => p.person));
+      }
+      if (cb.checked) filterState.people.add(person);
+      else filterState.people.delete(person);
+      applyFilters();
+    });
+    const sw = document.createElement('span');
+    sw.className = 'swatch';
+    sw.style.background = color;
+    const name = document.createElement('span');
+    name.className = 'label';
+    name.textContent = person;
+    const cnt = document.createElement('span');
+    cnt.className = 'count';
+    cnt.textContent = count;
+    label.append(cb, sw, name, cnt);
+    personList.appendChild(label);
+  }
+
+  dayList.innerHTML = '';
+  for (const { dayKey, count } of inv.days) {
+    const label = document.createElement('label');
+    label.className = 'chip';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !filterState.days || filterState.days.has(dayKey);
+    cb.addEventListener('change', () => {
+      if (!filterState.days) {
+        filterState.days = new Set(inv.days.map((d) => d.dayKey));
+      }
+      if (cb.checked) filterState.days.add(dayKey);
+      else filterState.days.delete(dayKey);
+      applyFilters();
+    });
+    const name = document.createElement('span');
+    name.className = 'label';
+    name.textContent = formatDayLabel(dayKey);
+    const cnt = document.createElement('span');
+    cnt.className = 'count';
+    cnt.textContent = count;
+    label.append(cb, name, cnt);
+    dayList.appendChild(label);
+  }
+
+  if (inv.range.min != null) {
+    timeFrom.min = toLocalInput(inv.range.min);
+    timeTo.min = toLocalInput(inv.range.min);
+  }
+  if (inv.range.max != null) {
+    timeFrom.max = toLocalInput(inv.range.max);
+    timeTo.max = toLocalInput(inv.range.max);
+  }
+}
+
+function formatDayLabel(dayKey) {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function toLocalInput(ts) {
+  const d = new Date(ts);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function applyFilters() {
+  const filtered = filterPhotos(currentPhotos, filterState);
+  setVisiblePhotoIds(new Set(filtered.map((p) => p.id)));
+  setPaths(computePaths(filtered));
+}
+
+// ============ Scan flow ============
+
 const saveBtn = document.getElementById('save-map');
 let currentPhotos = [];
 let currentFolderName = '';
@@ -104,10 +242,19 @@ pickBtn.addEventListener('click', async () => {
   sessionToken++;
   const token = sessionToken;
   resetThumbQueues();
+  resetPathState();
   clearPhotos();
   currentPhotos = [];
   currentFolderName = dirHandle.name || 'PhotoMap';
   saveBtn.hidden = true;
+  filtersBtn.hidden = true;
+  filterPanel.hidden = true;
+  filterState.people = null;
+  filterState.days = null;
+  filterState.from = null;
+  filterState.to = null;
+  timeFrom.value = '';
+  timeTo.value = '';
   statusEl.textContent = 'Scanning…';
 
   let scanned = 0;
@@ -119,8 +266,9 @@ pickBtn.addEventListener('click', async () => {
   };
 
   await scanFolder(dirHandle, {
-    onPhoto(photo) {
+    onPhoto(rawPhoto) {
       geoCount++;
+      const photo = enrich(rawPhoto);
       batch.push(photo);
       currentPhotos.push(photo);
       queueThumb(photo, token);
@@ -139,7 +287,12 @@ pickBtn.addEventListener('click', async () => {
   statusEl.textContent =
     `Done — ${geoCount} geotagged photo${geoCount === 1 ? '' : 's'} of ${scanned} scanned`;
   saveBtn.hidden = geoCount === 0;
+  filtersBtn.hidden = geoCount === 0;
+  renderInventory();
+  applyFilters();
 });
+
+// ============ Export ============
 
 const exportDialog = document.getElementById('export-dialog');
 const exportStatus = document.getElementById('export-status');
@@ -148,16 +301,19 @@ const exportCancel = document.getElementById('export-cancel');
 let exportAbort = null;
 
 saveBtn.addEventListener('click', async () => {
-  if (!currentPhotos.length) return;
+  const visible = filterPhotos(currentPhotos, filterState);
+  if (!visible.length) return;
   exportAbort = new AbortController();
-  exportStatus.textContent = `Preparing 0 / ${currentPhotos.length}…`;
+  exportStatus.textContent = `Preparing 0 / ${visible.length}…`;
   exportBar.style.width = '0%';
   exportDialog.showModal();
 
   let result;
   try {
-    result = await exportMap(currentPhotos, {
+    result = await exportMap(visible, {
       title: currentFolderName,
+      showPaths: filterState.showPaths,
+      paths: computePaths(visible),
       signal: exportAbort.signal,
       onProgress: ({ done, total }) => {
         exportStatus.textContent = `Generating previews… ${done} / ${total}`;

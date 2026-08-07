@@ -66,7 +66,100 @@ body {
   transform: translateX(14px);
 }
 
-#map { flex: 1; min-height: 0; }
+#map { flex: 1; min-height: 0; position: relative; }
+
+#save-map { background: #2f7d3a; }
+#save-map:hover { background: #266630; }
+#filters-btn { background: #6b6be2; }
+#filters-btn:hover { background: #5555c9; }
+
+#filter-panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 300px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  background: rgba(20, 20, 20, 0.94);
+  color: #eee;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 0 0 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+  font-size: 13px;
+}
+#filter-panel[hidden] { display: none; }
+#filter-panel header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #2a2a2a;
+  font-weight: 600;
+}
+#filter-close {
+  background: transparent; color: #aaa; border: 0;
+  width: 24px; height: 24px; font-size: 20px; cursor: pointer;
+  line-height: 1; padding: 0;
+}
+#filter-close:hover { color: #fff; }
+.panel-toggle {
+  margin: 12px 14px 0;
+  color: #ddd;
+}
+#filter-panel section {
+  padding: 12px 14px 0;
+}
+#filter-panel h4 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: #4a90e2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.chip-list {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 180px; overflow-y: auto;
+}
+.chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+.chip:hover { background: rgba(255, 255, 255, 0.04); }
+.chip input { margin: 0; cursor: pointer; }
+.chip .swatch {
+  width: 12px; height: 12px; border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.chip .label {
+  flex: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chip .count {
+  color: #888; font-size: 12px;
+}
+.range-row {
+  margin-bottom: 6px;
+}
+.range-row label {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  color: #ccc;
+}
+.range-row input {
+  background: #222; color: #eee;
+  border: 1px solid #333; border-radius: 4px;
+  padding: 3px 6px; font-size: 12px;
+  color-scheme: dark;
+}
+.link-btn {
+  background: transparent; color: #4a90e2; border: 0;
+  padding: 4px 0; cursor: pointer; font-size: 12px;
+}
+.link-btn:hover { text-decoration: underline; }
 
 #viewer {
   position: fixed; inset: 0;

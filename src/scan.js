@@ -56,6 +56,8 @@ export async function scanFolder(dirHandle, { onPhoto, onScanned }) {
           lat: meta.lat,
           lng: meta.lng,
           date: meta.date,
+          make: meta.make,
+          model: meta.model,
           fileHandle: handle,
           file
         });

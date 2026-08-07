@@ -95,7 +95,9 @@ function blobToDataUrl(blob) {
   });
 }
 
-export async function exportMap(photos, { title, onProgress, signal } = {}) {
+export async function exportMap(photos, {
+  title, onProgress, signal, paths = [], showPaths = false
+} = {}) {
   const total = photos.length;
   const results = [];
   let done = 0;
@@ -132,7 +134,7 @@ export async function exportMap(photos, { title, onProgress, signal } = {}) {
 
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
-  const html = buildHtml(title || 'PhotoMap', results);
+  const html = buildHtml(title || 'PhotoMap', results, paths, showPaths);
   return { html, count: results.length };
 }
 
@@ -164,9 +166,9 @@ export async function saveHtml(html, defaultName) {
   return { saved: true, method: 'download' };
 }
 
-function buildHtml(title, photos) {
+function buildHtml(title, photos, paths, showPaths) {
   const escaped = escapeHtml(title);
-  const dataJson = JSON.stringify(photos);
+  const dataJson = JSON.stringify({ photos, paths, showPaths });
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -209,6 +211,8 @@ body {
 }
 .toggle input:checked { background: #4a90e2; }
 .toggle input:checked::after { transform: translateX(14px); }
+.toggle:not(:last-child) { margin-left: 0; }
+#topbar > .toggle + .toggle { margin-left: 12px; }
 #map { flex: 1; min-height: 0; }
 #viewer {
   position: fixed; inset: 0; background: rgba(0,0,0,0.92);
@@ -248,6 +252,10 @@ body {
     <span id="title">${escaped}</span>
     <span id="count">${photos.length} photo${photos.length === 1 ? '' : 's'}</span>
     <label class="toggle">
+      <input type="checkbox" id="paths-checkbox" ${showPaths ? 'checked' : ''} />
+      <span>Show paths</span>
+    </label>
+    <label class="toggle">
       <input type="checkbox" id="thumbs-checkbox" checked />
       <span>Show thumbnails</span>
     </label>
@@ -265,7 +273,12 @@ body {
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script id="photos-data" type="application/json">${escapeJsonForScript(dataJson)}</script>
 <script>
-window.__PHOTOS__ = JSON.parse(document.getElementById('photos-data').textContent);
+(function(){
+  var d = JSON.parse(document.getElementById('photos-data').textContent);
+  window.__PHOTOS__ = d.photos;
+  window.__PATHS__ = d.paths || [];
+  window.__SHOW_PATHS__ = !!d.showPaths;
+})();
 ${runtimeSource}
 </script>
 </body>

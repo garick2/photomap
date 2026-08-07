@@ -3,6 +3,8 @@
 // Expects: maplibregl loaded on the page (from CDN).
 (function () {
   const photos = window.__PHOTOS__ || [];
+  const pathFeatures = window.__PATHS__ || [];
+  const showPaths = !!window.__SHOW_PATHS__;
   const photosById = Object.fromEntries(photos.map((p) => [p.id, p]));
 
   const map = new maplibregl.Map({
@@ -39,6 +41,26 @@
 
   map.on('load', () => {
     map.resize();
+
+    map.addSource('paths', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: pathFeatures }
+    });
+    map.addLayer({
+      id: 'paths',
+      type: 'line',
+      source: 'paths',
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round',
+        visibility: showPaths ? 'visible' : 'none'
+      },
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': 3,
+        'line-opacity': 0.85
+      }
+    });
 
     const features = photos.map((p) => ({
       type: 'Feature',
@@ -168,4 +190,11 @@
     map.setPaintProperty('photo-dots', 'circle-radius', cb.checked ? 5 : 8);
     map.setPaintProperty('photo-dots', 'circle-stroke-width', cb.checked ? 1.5 : 2);
   });
+
+  const pathsCb = document.getElementById('paths-checkbox');
+  if (pathsCb) {
+    pathsCb.addEventListener('change', () => {
+      map.setLayoutProperty('paths', 'visibility', pathsCb.checked ? 'visible' : 'none');
+    });
+  }
 })();

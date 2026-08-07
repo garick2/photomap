@@ -5,6 +5,7 @@ import { THUMB_PIXEL_RATIO } from './thumbs.js';
 let map;
 const photosById = new Map();
 const imageIds = new Set();
+let visibleIds = null;
 let firstBatch = true;
 
 export function initMap() {
@@ -42,6 +43,28 @@ export function initMap() {
 
   map.on('load', () => {
     map.resize();
+
+    map.addSource('paths', {
+      type: 'geojson',
+      data: emptyFC()
+    });
+
+    map.addLayer({
+      id: 'paths',
+      type: 'line',
+      source: 'paths',
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round',
+        visibility: 'none'
+      },
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': 3,
+        'line-opacity': 0.85
+      }
+    });
+
     map.addSource('photos', {
       type: 'geojson',
       data: emptyFC(),
@@ -126,7 +149,10 @@ function refreshSource() {
   const src = map.getSource('photos');
   if (!src) return;
   const features = [];
-  for (const p of photosById.values()) {
+  const iter = visibleIds
+    ? (function* () { for (const id of visibleIds) if (photosById.has(id)) yield photosById.get(id); })()
+    : photosById.values();
+  for (const p of iter) {
     features.push({
       type: 'Feature',
       properties: { id: p.id, name: p.name },
@@ -146,6 +172,27 @@ export function addPhotos(photos) {
     }
   };
   if (map.getSource('photos')) apply();
+  else map.once('load', apply);
+}
+
+export function setVisiblePhotoIds(idsSet) {
+  visibleIds = idsSet;
+  if (map.getSource('photos')) refreshSource();
+}
+
+export function setPaths(features) {
+  const apply = () => {
+    map.getSource('paths').setData({ type: 'FeatureCollection', features });
+  };
+  if (map.getSource('paths')) apply();
+  else map.once('load', apply);
+}
+
+export function setPathsVisible(visible) {
+  const apply = () => {
+    map.setLayoutProperty('paths', 'visibility', visible ? 'visible' : 'none');
+  };
+  if (map.getLayer('paths')) apply();
   else map.once('load', apply);
 }
 
@@ -184,6 +231,8 @@ export function clearPhotos() {
   }
   imageIds.clear();
   photosById.clear();
+  visibleIds = null;
   firstBatch = true;
   if (map.getSource('photos')) refreshSource();
+  if (map.getSource('paths')) map.getSource('paths').setData(emptyFC());
 }

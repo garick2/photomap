@@ -14,6 +14,7 @@
         <span id="unsupported" hidden>
           This browser doesn't support folder access. Use Chrome, Edge, or another Chromium browser.
         </span>
+        <button id="filters-btn" hidden>Filters</button>
         <button id="save-map" hidden>Save as map</button>
         <label id="thumbs-toggle" class="toggle">
           <input type="checkbox" id="thumbs-checkbox" checked />
@@ -21,6 +22,30 @@
         </label>
       </header>
       <div id="map"></div>
+      <aside id="filter-panel" hidden>
+        <header>
+          <span>Filters</span>
+          <button id="filter-close" aria-label="Close">×</button>
+        </header>
+        <label class="toggle panel-toggle">
+          <input type="checkbox" id="paths-toggle" />
+          <span>Show paths</span>
+        </label>
+        <section>
+          <h4>People</h4>
+          <div id="person-list" class="chip-list"></div>
+        </section>
+        <section>
+          <h4>Days</h4>
+          <div id="day-list" class="chip-list"></div>
+        </section>
+        <section>
+          <h4>Time range</h4>
+          <div class="range-row"><label>From <input type="datetime-local" id="time-from" /></label></div>
+          <div class="range-row"><label>To <input type="datetime-local" id="time-to" /></label></div>
+          <button id="range-clear" class="link-btn">Clear range</button>
+        </section>
+      </aside>
     </div>
 
     <dialog id="intro">
